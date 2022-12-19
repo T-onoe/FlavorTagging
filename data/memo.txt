@@ -1,8 +1,0 @@
-(Edited 2022/12/16 T.Onoe)
-Data is located in the following directories
-
-bepp@kyushu-u:
-	/gluster/maxi/ilc/onoe/gnn/data_*
-		1122: tracks + VC
-		1208: tracks
-		1212: flavor + tracks
