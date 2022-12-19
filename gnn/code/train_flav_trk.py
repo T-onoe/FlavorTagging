@@ -31,10 +31,10 @@ class NodeAndGraphClassification(torch.nn.Module):
         self.bn3 = BatchNorm(64)
         self.fc2 = nn.Linear(64, 64)
         self.bn4 = BatchNorm(64)
-        self.fc3 = nn.Linear(64,32)
+        self.fc3 = nn.Linear(64,128)
         self.fc4 = nn.Linear(64,3)
-        self.bn5 = BatchNorm(32)
-        self.fc5 = nn.Linear(32,5)
+        self.bn5 = BatchNorm(128)
+        self.fc5 = nn.Linear(128,5)
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
@@ -56,17 +56,13 @@ class NodeAndGraphClassification(torch.nn.Module):
         x = self.fc2(x)
         x = self.bn4(x)
         x = F.relu(x)
-
-        #Track classification
         node_out = self.fc3(x)
         node_out = self.bn5(node_out)
         node_out = F.relu(node_out)
         node_out = self.fc5(node_out)
-
-        #Flavor classification
+        
         graph_out = global_mean_pool(x, data.batch)
         graph_out= self.fc4(graph_out)
-        
         return node_out, graph_out
 
 def combined_loss(node_output, graph_output, node_labels, graph_labels):
@@ -106,7 +102,7 @@ if __name__ == '__main__':
 #    weights = torch.tensor([0.3679, 0.22385, 0.75787, 0.826, 1.0]).cuda()   #Sqrt of inverse ratio
     node_loss_fn = nn.CrossEntropyLoss(weight=weights)
     graph_loss_fn = nn.CrossEntropyLoss()
-    optimizer = optimizers.Adam(model.parameters(), lr=0.001, amsgrad=False)
+    optimizer = optimizers.Adam(model.parameters(), lr=0.01, amsgrad=False)
     scheduler= optimizers.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
 
     def train():
@@ -154,7 +150,6 @@ if __name__ == '__main__':
         target = []
         target_g = []
 
-        #list for roc_curve
         pred_0 = []
         pred_1 = []
         pred_2 = []
@@ -191,9 +186,13 @@ if __name__ == '__main__':
                 pred_1_g += [float(l) for l in graph_out_1]
                 pred_2_g += [float(l) for l in graph_out_2]
                 #For efficiency
-                pred_b += [float(l) for l in graph_out_0]
-                pred_c += [float(l) for l in graph_out_1]
-                pred_ud += [float(l) for l in graph_out_2]
+                b_output = graph_out[:, 0]
+                c_output = graph_out[:, 1]
+                uds_output = graph_out[:, 2]
+
+                pred_b += [float(l) for l in b_output]
+                pred_c += [float(l) for l in c_output]
+                pred_ud += [float(l) for l in uds_output]
                 #Main
                 node_pred = node_out.argmax(dim=1).cpu()
                 graph_pred = graph_out.argmax(dim=1).cpu()
@@ -220,7 +219,7 @@ if __name__ == '__main__':
     val_accs = []
     val_accs_g = []
     print("Training Start!")
-    for epoch in range(1,100):
+    for epoch in range(1,500):
         train_loss, acc_node, acc_graph = train()
         val_loss, val_acc, val_acc_g = validation()
         train_losses.append(train_loss)
@@ -251,7 +250,7 @@ if __name__ == '__main__':
     sns.heatmap(cm_norm, square=True, cbar=True, annot=True, cmap='Blues')
     plt.xlabel("Predicted label")
     plt.ylabel("True label")
-    plt.savefig('../output/planb/cm_node_' + now.strftime('%Y%m%d_%H%M') + '.png')
+    plt.savefig('/home/onoe/ILC/Deep_Learning/gnn/output/planb/cm_node_' + now.strftime('%Y%m%d_%H%M') + '.png')
 
     #Confusion matrix (Graph)
     cm2 = confusion_matrix(target_g, graph_pred)
@@ -263,7 +262,7 @@ if __name__ == '__main__':
     sns.heatmap(cm_norm2, square=True, cbar=True, annot=True, cmap='Blues')
     plt.xlabel("Predicted label")
     plt.ylabel("True label")
-    plt.savefig('../output/planb/cm_graph_' + now.strftime('%Y%m%d_%H%M') + '.png')
+    plt.savefig('/home/onoe/ILC/Deep_Learning/gnn/output/planb/cm_graph_' + now.strftime('%Y%m%d_%H%M') + '.png')
 
     #ROC_curve (Node)
     fpr1, tpr1, thresholds = roc_curve(target, pred_0, pos_label=0)                               
@@ -281,7 +280,7 @@ if __name__ == '__main__':
     plt.ylabel('TPR: True positive rate')                                                         
     plt.grid()                                                                                    
     plt.legend()
-    plt.savefig('../output/planb/roc_curve_node_' + now.strftime('%Y%m%d_%H%M') + '.png')
+    plt.savefig('/home/onoe/ILC/Deep_Learning/gnn/output/planb/roc_curve_node_' + now.strftime('%Y%m%d_%H%M') + '.png')
 
     #ROC curve (Graph)
     fpr1, tpr1, thresholds = roc_curve(target_g, pred_0_g, pos_label=0)
@@ -295,7 +294,7 @@ if __name__ == '__main__':
     plt.ylabel('TPR: True positive rate')
     plt.grid()
     plt.legend()
-    plt.savefig('../output/planb/roc_curve_graph_' + now.strftime('%Y%m%d_%H%M') + '.png')
+    plt.savefig('/home/onoe/ILC/Deep_Learning/gnn/output/planb/roc_curve_graph_' + now.strftime('%Y%m%d_%H%M') + '.png')
 
     #Loss
     fig = plt.figure()
@@ -306,8 +305,7 @@ if __name__ == '__main__':
     plt.xlabel('Epochs')
     plt.ylabel('Loss function')
     plt.legend(loc='best')
-    fig.savefig('../output/planb/loss_' + now.strftime('%Y%m%d_%H%M') + '.png')
-    
+    fig.savefig('/home/onoe/ILC/Deep_Learning/gnn/output/planb/loss_' + now.strftime('%Y%m%d_%H%M') + '.png')
     #Accuracy (Node)
     fig = plt.figure()
     plt.plot(train_acc_node, label='train_acc')
@@ -317,8 +315,7 @@ if __name__ == '__main__':
     plt.ylabel('Accuracy')
     plt.legend(loc='best')
     plt.ylim(0, 1)
-    fig.savefig('../output/planb/acc_node_' + now.strftime('%Y%m%d_%H%M') + '.png')
-    
+    fig.savefig('/home/onoe/ILC/Deep_Learning/gnn/output/planb/acc_node_' + now.strftime('%Y%m%d_%H%M') + '.png')
     #Accuracy (Graph)
     fig = plt.figure()
     plt.plot(train_acc_graph, label='train_acc')
@@ -328,7 +325,7 @@ if __name__ == '__main__':
     plt.ylabel('Accuracy')
     plt.legend(loc='best')
     plt.ylim(0, 1)
-    fig.savefig('../output/planb/acc_graph_' + now.strftime('%Y%m%d_%H%M') + '.png')
+    fig.savefig('/home/onoe/ILC/Deep_Learning/gnn/output/planb/acc_graph_' + now.strftime('%Y%m%d_%H%M') + '.png')
 
     #Efficiency
     bb_eff = []
@@ -361,6 +358,7 @@ if __name__ == '__main__':
         num_b = []
         num_c = []
         num_uds = []
+
         for j in range(len(target_g)):
             if target_g[j] == 0:
               num_b.append(target_g[j])
@@ -405,8 +403,7 @@ if __name__ == '__main__':
         cb_back.append(rate_c_b)
         cc_eff.append(rate_c_c)
         cuds_back.append(rate_c_uds)
-
-    #Efficiency plot (b-tag)
+        
     fig = plt.figure()
     plt.scatter(bb_eff, bc_back, s=8,  facecolors="None", linewidths=0.8, edgecolors='lime' ,label='c jets')
     plt.scatter(bb_eff, buds_back, s=8, facecolors="None", linewidths=0.8, edgecolors='blue', label='uds jets')
@@ -418,9 +415,8 @@ if __name__ == '__main__':
     plt.xlabel('Tagging efficiency')
     plt.ylabel('Mis-id. fraction')
     plt.legend()
-    fig.savefig('../output/planb/eff_b_' + now.strftime('%Y%m%d_%H%M') + '.png')
+    fig.savefig('../../output/planb/eff_b_' + now.strftime('%Y%m%d_%H%M') + '.png')
 
-    #Efficiency plot (c-tag)
     fig = plt.figure()
     plt.scatter(cc_eff, cb_back, s=8,facecolors="None", linewidths=0.8, edgecolors='red', label='b jets')
     plt.scatter(cc_eff, cuds_back, s=8,facecolors="None", linewidths=0.8, edgecolors='black', label='uds jets')
@@ -432,7 +428,7 @@ if __name__ == '__main__':
     plt.xlabel('Tagging efficiency')
     plt.ylabel('Mis-id. fraction')
     plt.legend()
-    fig.savefig('../output/planb/eff_c_' + now.strftime('%Y%m%d_%H%M') + '.png')
+    fig.savefig('../../output/planb/eff_c_' + now.strftime('%Y%m%d_%H%M') + '.png')
 
     #End
     print('saving as '+ now.strftime('%Y%m%d_%H%M'))
