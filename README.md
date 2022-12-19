@@ -1,5 +1,5 @@
-# FlavorTagging
-This is algorithm for Flavor Tagging on ilc.
+# FlavorTagging (under construction)
+This is an algorithm for Flavor Tagging on ILC(International Linear Collider).
 
 Since the system is not open to the public now, it is intended to be implemented on the data server of Kyushu University.
 
